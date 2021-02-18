@@ -14,13 +14,20 @@
 
 import com.google.ads.googleads.v6.services.GoogleAdsServiceClient;
 import com.google.ads.googleads.v6.services.GoogleAdsServiceSettings;
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
+import com.google.auth.Credentials;
 import com.google.auth.oauth2.UserCredentials;
 import java.io.IOException;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Issue {
 
   public static void main(String[] args) throws IOException {
+    // Hangs.
     UserCredentials credentials =
         UserCredentials.newBuilder()
             .setClientId("")
@@ -28,10 +35,38 @@ public class Issue {
             .setRefreshToken("this does not exist")
             .build();
 
+    // Fails, but does not hang.
+    Credentials fakeCredentials =
+        new Credentials() {
+          @Override
+          public String getAuthenticationType() {
+            return "foo";
+          }
+
+          @Override
+          public Map<String, List<String>> getRequestMetadata(URI uri) throws IOException {
+            return new HashMap<>();
+          }
+
+          @Override
+          public boolean hasRequestMetadata() {
+            return false;
+          }
+
+          @Override
+          public boolean hasRequestMetadataOnly() {
+            return false;
+          }
+
+          @Override
+          public void refresh() throws IOException {}
+        };
+
     GoogleAdsServiceSettings settings =
         GoogleAdsServiceSettings.newBuilder()
             .setTransportChannelProvider(InstantiatingGrpcChannelProvider.newBuilder().build())
-            .setCredentialsProvider(() -> credentials)
+            .setCredentialsProvider(FixedCredentialsProvider.create(fakeCredentials))
+            // .setCredentialsProvider(() -> credentials)
             .build();
 
     GoogleAdsServiceClient client = GoogleAdsServiceClient.create(settings);
